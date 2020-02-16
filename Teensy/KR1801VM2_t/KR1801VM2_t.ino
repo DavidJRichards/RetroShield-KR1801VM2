@@ -41,7 +41,7 @@
 
 // Define for No-ISR cycling
 
-//#define NO_ISR 1
+#define NO_ISR 1
 
 // Define to trace processor cycles - in conjunction with NO_ISR 
 
@@ -369,7 +369,8 @@ void uP_OUT()
 #define uP_SEL_N     2    // PD0
 #define uP_DCLO_N   30    // PB19
 #define uP_ACLO_N   29    // PB18
-#define uP_CLCI     39    // PA17
+//#define uP_CLCI     39    // PA17
+#define uP_CLCI     21    // previously pin 39 PAD6
 
 /* Digital Pin Assignments */
 // write to CPU bus (data or address)
@@ -394,9 +395,12 @@ void uP_OUT()
 // Macros for GPIO access
 
 // Outputs
-#define CLK_HIGH      (GPIOA_PSOR  = (1<<17)) // CLCI A17
-#define CLK_LOW       (GPIOA_PCOR  = (1<<17))
-#define CLK_DIR       (GPIOA_PDDR |= (1<<17))
+//#define CLK_HIGH      (GPIOA_PSOR  = (1<<17)) // CLCI A17
+//#define CLK_LOW       (GPIOA_PCOR  = (1<<17))
+//#define CLK_DIR       (GPIOA_PDDR |= (1<<17))
+#define CLK_HIGH      (GPIOD_PSOR  = (1<<6)) // CLCI D6
+#define CLK_LOW       (GPIOD_PCOR  = (1<<6))
+#define CLK_DIR       (GPIOD_PDDR |= (1<<6))
 
 #define AR_N_HIGH     (GPIOD_PSOR  = (1<<5))  // AR_N D5
 #define AR_N_LOW      (GPIOD_PCOR  = (1<<5)) 
@@ -470,38 +474,52 @@ static inline void DATA_OUT_(unsigned int busdata)
 {
   SET_DATA_OUT_H( busdata );
   SET_DATA_OUT_L( busdata );
+    Serial.print("bus write ");      
+    Serial.println(~busdata, OCT);      
 }
 
 // read ofrom the bus with this function or simply, data = ADDR;
 // set bus to input first with uP_IN();
 static inline unsigned int DATA_IN_(void)
 {
-  return (unsigned int) (ADDR_H | ADDR_L);
+  unsigned int return_val = (unsigned int) (ADDR_H | ADDR_L);
+  Serial.print("bus read ");      
+  Serial.println(~return_val & 0xFFFF, OCT);      
+  return return_val;
 }
 
 // 1801VM2 States (Teensy)
 
-#define STATE_RESET               !( (INIT_STATE) || (ACLO_STATE) ||  (DCLO_STATE))
+//#define STATE_RESET             !( (PINL & _INIT_N) || (PINB & _ACLO_N) || (PINB & _DCLO_N) )
+#define STATE_RESET               !( (INIT_STATE)     || (ACLO_STATE)     || (DCLO_STATE)     )
 
-#define STATE_START_1             !( (INIT_STATE) || (ACLO_STATE) || !(DCLO_STATE))
+//#define STATE_START_1           !( (PINL & _INIT_N) || (PINB & _ACLO_N) || !(PINB & _DCLO_N))
+#define STATE_START_1             !( (INIT_STATE)     || (ACLO_STATE)     || !(DCLO_STATE)    )
 
-#define STATE_START_2             !(!(INIT_STATE) || (ACLO_STATE) || !(DCLO_STATE))
+//#define STATE_START_2           !( !(PINL & _INIT_N) || (PINB & _ACLO_N) || !(PINB & _DCLO_N))
+#define STATE_START_2             !( !(INIT_STATE)     || (ACLO_STATE)     || !(DCLO_STATE)    )
 
-#define STATE_STARTED              (  INIT_STATE  &&  ACLO_STATE &&    DCLO_STATE ) && (uP_last_state == START_2)
+//#define STATE_STARTED            ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (uP_last_state == START_2)
+#define STATE_STARTED              ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (uP_last_state == START_2)
 
-#define STATE_RESET_VECTOR         ( (INIT_STATE  &&  ACLO_STATE &&    DCLO_STATE) && (!SEL_STATE && SYNC_STATE && !DIN_STATE) )
+//#define STATE_RESET_VECTOR       ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PINL & _SEL_N) && (PING & _SYNC_N) && !(PING & _DIN_N))
+#define STATE_RESET_VECTOR         ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SEL_STATE)     && (SYNC_STATE)     && !(DIN_STATE)    )
 
-#define STATE_SET_INIT_ADDRESS     ( (INIT_STATE  &&  ACLO_STATE &&    DCLO_STATE)  && (!SEL_STATE && DIN_STATE && DOUT_STATE && !SYNC_STATE) )
+//#define STATE_SET_INIT_ADDRESS   ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PINL & _SEL_N) && (PING & _DIN_N) && (PING & _DOUT_N) && (!(PING & _SYNC_N)) )
+#define STATE_SET_INIT_ADDRESS     ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE))     && (!(SEL_STATE)     && (DIN_STATE)     && (DOUT_STATE)     && (!(SYNC_STATE))     )
  
-#define STATE_SET_ADDRESS          ( (INIT_STATE  &&  ACLO_STATE  &&   DCLO_STATE) && (SEL_STATE && DIN_STATE && DOUT_STATE && !SYNC_STATE) )
+//#define STATE_SET_ADDRESS        ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N) ) && ( (PINL & _SEL_N) && (PING & _DIN_N) && (PING & _DOUT_N) && (!(PING & _SYNC_N)) )
+#define STATE_SET_ADDRESS          ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)     ) && ( (SEL_STATE)     && (DIN_STATE)     && (DOUT_STATE)     && (!(SYNC_STATE))     )
 
-#define STATE_DIN                  ( (INIT_STATE  &&  ACLO_STATE  &&   DCLO_STATE) && (!SYNC_STATE && !DIN_STATE) )
+//#define STATE_DIN                ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PING & _SYNC_N) && !(PING & _DIN_N) )
+#define STATE_DIN                  ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SYNC_STATE)     && !(DIN_STATE)     ) 
  
-#define STATE_DOUT                 ( (INIT_STATE  &&  ACLO_STATE  &&   DCLO_STATE) && (!SYNC_STATE && !DOUT_STATE) )
+//#define STATE_DOUT               ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PING & _SYNC_N) && !(PING & _DOUT_N))
+#define STATE_DOUT                 ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SYNC_STATE)     && !(DOUT_STATE)    )
  
 #define STATE_IDLE                   0
 
-#define STATE_SYNC                  (SYNC_STATE?1:0) // i.e. when SYNC input active
+#define STATE_SYNC                  (SYNC_STATE) // i.e. when SYNC input active
 
 #endif
 
@@ -540,8 +558,8 @@ uP_STATE uP_entry_state = IDLE;
 uP_STATE uP_last_state = IDLE;
 uP_STATE uP_current_state = IDLE;
 
-M7856 console(1,CONSOLE_BASE,9600);
-M7856 tu58(2,TU58_BASE,9600);
+M7856 console(0,CONSOLE_BASE,9600);
+M7856 tu58(0,TU58_BASE,9600);
 KY11 operatorconsole(KY11_BASE,0);
 M9312 romterminator(M9312_LOW_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 
@@ -597,7 +615,10 @@ void uP_assert_reset()
 #endif
   void cycle()
 { 
+//  pinMode(uP_CLCI, OUTPUT);
+//  digitalWrite(uP_CLCI,LOW);
   CLK_LOW;
+  delay(1);
 
   uP_entry_state = uP_current_state;
   if (STATE_RESET)
@@ -643,6 +664,8 @@ void uP_assert_reset()
     {
       uP_last_state = RESET_VECTOR;
       uP_DATA = romterminator.read(BOOT_ADDRESS);
+//    Serial.print("Boot address=");      
+//    Serial.println(uP_DATA, OCT);      
       uP_BUSDATA = ~uP_DATA;
       uP_OUT();
       DATA_OUT_(uP_BUSDATA);
@@ -729,7 +752,7 @@ void uP_assert_reset()
       address_valid = false;
       uP_IN();
       uP_BUSDATA = DATA_IN_();
-      uP_DATA = ~uP_BUSDATA;
+      uP_DATA = ~uP_BUSDATA & 0xFFFF;
 
       if ((uP_ADDR >= RAM_START) && (uP_ADDR < RAM_END))
       {
@@ -793,9 +816,14 @@ void uP_assert_reset()
     AR_N_LOW;
   }
  
+//  pinMode(uP_CLCI, OUTPUT);
+//  digitalWrite(uP_CLCI,HIGH);
   CLK_HIGH;
+//  delay(1);
 
   clock_cycle_count ++;
+
+
 }
 
 
@@ -876,7 +904,7 @@ int upmode=0;
 int trace_ad=0;
 void btn_Pressed_Up(int button)
 {
-  Serial.println("Up");
+//  Serial.println("Up");
   if(button==1)
   {
   }
@@ -888,9 +916,10 @@ void btn_Pressed_Up(int button)
 
 void btn_Pressed_Down(int button)
 {
-  Serial.println("Down");
+//  Serial.println("Down");
   if(button==1)
   {
+    Serial.println("Resetting");
     uP_assert_reset();
   }
   if(button==2)
@@ -1119,31 +1148,45 @@ void debug_state()
   
     Serial.print("INIT:");
     Serial.print(digitalRead(uP_INIT_N) ? "1" : "0");
+    
     Serial.print(" DCLO:");
     Serial.print(digitalRead(uP_DCLO_N) ? "1" : "0");
+    
     Serial.print(" ACLO:");
     Serial.print(digitalRead(uP_ACLO_N) ? "1" : "0");
+    
     Serial.print(" SEL:");
     Serial.print(digitalRead(uP_SEL_N) ? "1" : "0");
+    
     Serial.print(" SYNC:");
     Serial.print(digitalRead(uP_SYNC_N) ? "1" : "0");
+    
     Serial.print(" LSYNC:");
     Serial.print(last_uP_SYNC_N ? "1" : "0");
+    
     Serial.print(" AR:");
     Serial.print(digitalRead(uP_AR_N) ? "1" : "0");
+    
     Serial.print(" DIN:");
     Serial.print(digitalRead(uP_DIN_N) ? "1" : "0");
+    
     Serial.print(" DOUT:");
     Serial.print(digitalRead(uP_DOUT_N) ? "1" : "0");
+    
     Serial.print(" RPLY:");
     Serial.print(digitalRead(uP_RPLY_N) ? "1" : "0");
+    
     Serial.print(" WTBT:");
     Serial.print(digitalRead(uP_WTBT_N) ? "1" : "0");
+    
     Serial.print(" ");
     Serial.print(clock_cycle_count);  
     Serial.print(" ");
     
-    sprintf(tmp, "A=o%06o D=o%06o", uP_ADDR, uP_DATA);
+    sprintf(tmp, "A=o%06o", uP_ADDR);
+    Serial.print(tmp);
+    
+    sprintf(tmp,  " D=o%06o", uP_DATA);
     Serial.println(tmp);
   }
   
