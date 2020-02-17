@@ -41,11 +41,11 @@
 
 // Define for No-ISR cycling
 
-#define NO_ISR 1
+//#define NO_ISR 1
 
 // Define to trace processor cycles - in conjunction with NO_ISR 
 
-#define CPUTRACE 1
+//#define CPUTRACE 1
 
 // Define to enable traps
 
@@ -238,10 +238,8 @@ unsigned int RAM[RAM_END-RAM_START+1];
 ////////////////////////////////////////////////////////////////////
 // Processor Control
 ////////////////////////////////////////////////////////////////////
-#ifndef TEENSY
-#else // definitions for Teensy 3.5 below here -----------------------------------------------------------------------------------------------------------------------------
 #define uP_DOUT_N   16    // PB0
-#define uP_DIN_N     6    // PD4 //previously pin13  LED_BUILTIN  // PC5
+#define uP_DIN_N     6    // PD4 previously pin13 LED_BUILTIN PC5
 #define uP_SYNC_N   17    // PB1
 #define uP_AR_N     20    // PD5
 #define uP_RPLY_N    8    // PD3
@@ -250,8 +248,7 @@ unsigned int RAM[RAM_END-RAM_START+1];
 #define uP_SEL_N     2    // PD0
 #define uP_DCLO_N   30    // PB19
 #define uP_ACLO_N   29    // PB18
-//#define uP_CLCI     39    // PA17
-#define uP_CLCI     21    // previously pin 39 PAD6
+#define uP_CLCI     21    // PD6 previously pin 39 PAD6
 
 /* Digital Pin Assignments */
 // write to CPU bus (data or address)
@@ -379,38 +376,17 @@ static inline unsigned int DATA_IN_(void)
 
 // 1801VM2 States (Teensy)
 
-//#define STATE_RESET             !( (PINL & _INIT_N) || (PINB & _ACLO_N) || (PINB & _DCLO_N) )
 #define STATE_RESET               !( (INIT_STATE)     || (ACLO_STATE)     || (DCLO_STATE)     )
-
-//#define STATE_START_1           !( (PINL & _INIT_N) || (PINB & _ACLO_N) || !(PINB & _DCLO_N))
 #define STATE_START_1             !( (INIT_STATE)     || (ACLO_STATE)     || !(DCLO_STATE)    )
-
-//#define STATE_START_2           !( !(PINL & _INIT_N) || (PINB & _ACLO_N) || !(PINB & _DCLO_N))
 #define STATE_START_2             !( !(INIT_STATE)     || (ACLO_STATE)     || !(DCLO_STATE)    )
-
-//#define STATE_STARTED            ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (uP_last_state == START_2)
 #define STATE_STARTED              ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (uP_last_state == START_2)
-
-//#define STATE_RESET_VECTOR       ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PINL & _SEL_N) && (PING & _SYNC_N) && !(PING & _DIN_N))
 #define STATE_RESET_VECTOR         ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SEL_STATE)     && (SYNC_STATE)     && !(DIN_STATE)    )
-
-//#define STATE_SET_INIT_ADDRESS   ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PINL & _SEL_N) && (PING & _DIN_N) && (PING & _DOUT_N) && (!(PING & _SYNC_N)) )
 #define STATE_SET_INIT_ADDRESS     ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE))     && (!(SEL_STATE)     && (DIN_STATE)     && (DOUT_STATE)     && (!(SYNC_STATE))     )
- 
-//#define STATE_SET_ADDRESS        ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N) ) && ( (PINL & _SEL_N) && (PING & _DIN_N) && (PING & _DOUT_N) && (!(PING & _SYNC_N)) )
 #define STATE_SET_ADDRESS          ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)     ) && ( (SEL_STATE)     && (DIN_STATE)     && (DOUT_STATE)     && (!(SYNC_STATE))     )
-
-//#define STATE_DIN                ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PING & _SYNC_N) && !(PING & _DIN_N) )
 #define STATE_DIN                  ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SYNC_STATE)     && !(DIN_STATE)     ) 
- 
-//#define STATE_DOUT               ( (PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PING & _SYNC_N) && !(PING & _DOUT_N))
 #define STATE_DOUT                 ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SYNC_STATE)     && !(DOUT_STATE)    )
- 
 #define STATE_IDLE                   0
-
 #define STATE_SYNC                  (SYNC_STATE != 0) // i.e. when SYNC input active
-
-#endif
 
 // State Management
 
@@ -449,7 +425,7 @@ uP_STATE uP_current_state = IDLE;
 
 M7856 console(1,CONSOLE_BASE,9600);
 M7856 tu58(0,TU58_BASE,9600);
-KY11 operatorconsole(KY11_BASE,0);
+KY11 operatorconsole(KY11_BASE,0); // disabled
 //M9312 romterminator(M9312_LOW_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 //M9312 romterminator(ROM_LOOP,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 M9312 romterminator(ROM_SEND_B,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
@@ -509,7 +485,7 @@ void uP_assert_reset()
 //  pinMode(uP_CLCI, OUTPUT);
 //  digitalWrite(uP_CLCI,LOW);
   CLK_LOW;
-  delay(1);
+//  delay(1);
 
   uP_entry_state = uP_current_state;
   if (STATE_RESET)
@@ -555,8 +531,6 @@ void uP_assert_reset()
     {
       uP_last_state = RESET_VECTOR;
       uP_DATA = romterminator.read(BOOT_ADDRESS);
-//    Serial.print("Boot address=");      
-//    Serial.println(uP_DATA, OCT);      
       uP_BUSDATA = ~uP_DATA;
       uP_OUT();
       DATA_OUT_(uP_BUSDATA);
@@ -631,8 +605,6 @@ void uP_assert_reset()
         // Bus Error Trap
 #ifdef TRAP_BUS_ERROR
         trap_bus_error();
-#else
-;        
 #endif
       }
     }
@@ -679,8 +651,6 @@ void uP_assert_reset()
         // Bus Error Trap
 #ifdef TRAP_BUS_ERROR
         trap_bus_error();
-#else
-    ;        
 #endif
       }
     }
@@ -710,15 +680,8 @@ void uP_assert_reset()
   } else {
     AR_N_LOW;
   }
- 
-//  pinMode(uP_CLCI, OUTPUT);
-//  digitalWrite(uP_CLCI,HIGH);
-  delay(1);
   CLK_HIGH;
-//  delay(1);
-
   clock_cycle_count ++;
-
 
 }
 
@@ -926,7 +889,7 @@ void setup()
   // only clocked via the main loop
 
 #ifndef NO_ISR
-  Timer1.initialize(100000); // 100mS. Not tried below 2000 uS, seems ok at 10mS
+  Timer1.initialize(100); // 100nS. 10kHz 
   Timer1.attachInterrupt(cycle); 
 #endif
 
@@ -960,11 +923,12 @@ void debug_state()
     | (digitalRead(uP_ACLO_N) << 2)
     | (digitalRead(uP_SEL_N)  << 3)
     | (digitalRead(uP_SYNC_N) << 4)
-    | (digitalRead(uP_AR_N)   << 5)
+//    | (digitalRead(uP_AR_N)   << 5)
     | (digitalRead(uP_DIN_N)  << 6)
     | (digitalRead(uP_DOUT_N) << 7)
     | (digitalRead(uP_RPLY_N) << 8)
-    | (digitalRead(uP_WTBT_N) << 9);
+//    | (digitalRead(uP_WTBT_N) << 9)
+    ;
 
       //uP_IN();
 //      uP_BUSADDR = DATA_IN_();
@@ -986,7 +950,7 @@ void debug_state()
   
   if( (uP_entry_state != uP_entry_state_save) || (entry_digitalio != digitalio_save) || trace_ad)
   {
-    
+#if 1    
     switch (uP_entry_state)
     {
       case RESET:
@@ -1023,7 +987,9 @@ void debug_state()
         Serial.print("UNKNOWN     /");
         break;
     }
+#endif  
   
+#if 0  
     switch (uP_current_state)
     {
       case RESET:
@@ -1079,8 +1045,8 @@ void debug_state()
     Serial.print(" LSYNC:");
     Serial.print(last_uP_SYNC_N ? "1" : "0");
     
-    Serial.print(" AR:");
-    Serial.print(digitalRead(uP_AR_N) ? "1" : "0");
+//    Serial.print(" AR:");
+//    Serial.print(digitalRead(uP_AR_N) ? "1" : "0");
     
     Serial.print(" DIN:");
     Serial.print(digitalRead(uP_DIN_N) ? "1" : "0");
@@ -1091,9 +1057,9 @@ void debug_state()
     Serial.print(" RPLY:");
     Serial.print(digitalRead(uP_RPLY_N) ? "1" : "0");
     
-    Serial.print(" WTBT:");
-    Serial.print(digitalRead(uP_WTBT_N) ? "1" : "0");
-    
+//    Serial.print(" WTBT:");
+//    Serial.print(digitalRead(uP_WTBT_N) ? "1" : "0");
+#endif    
     Serial.print(" ");
     Serial.print(clock_cycle_count);  
     Serial.print(" ");
@@ -1109,9 +1075,7 @@ void debug_state()
 //    sprintf(tmp," STATE_SET_INIT_ADDRESS=%d",STATE_SET_INIT_ADDRESS);
 //    Serial.print(tmp);
     Serial.println();
-    
-
-    
+ 
   }
   
   uP_entry_state_save = uP_entry_state;
@@ -1131,8 +1095,28 @@ void debug_state()
 void loop()
 {
 
-  // Check for M7856 state changes
+#if 1
+  static int cycles=0;
+  static long lastMillis=0;
+  static float freq;
+  long currentMillis = millis();
+  if (currentMillis - lastMillis > 1000)
+  {
+    char tmp[20];
+    freq = (float) (clock_cycle_count - cycles) / (currentMillis - lastMillis);
+#ifdef NO_ISR
+    sprintf(tmp, "%.0f cps", freq*1000);
+#else    
+    sprintf(tmp, "%.1f kcps", freq);
+#endif    
+    Serial.println(tmp);
+
+    lastMillis = currentMillis;
+    cycles = clock_cycle_count;
+  }
+#endif
   
+  // Check for M7856 state changes
   console.event();
   tu58.event();
 

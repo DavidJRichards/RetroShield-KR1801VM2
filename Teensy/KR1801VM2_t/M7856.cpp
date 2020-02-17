@@ -33,6 +33,7 @@ M7856::M7856(uint8_t usart,unsigned int baseaddress,unsigned int baud) {
         break;
       case 1:
         Serial1.begin(baud);
+        Serial1.println("Serial 1 initialised");
         break;
       case 2:
       Serial2.begin(baud);
@@ -63,8 +64,8 @@ void M7856::write(unsigned int address, unsigned int value) {
     } else if (address == this->txdataaddress) {
       this->txdata = value;
       this->txstatus = this->txstatus & ((1<<M7856_TXSTATUS_XMITINTENB) | (1<<M7856_TXSTATUS_MAINT) | (1<<M7856_TXSTATUS_BREAK));
-    sprintf(tmp,  "data<%x>", this->txdata);
-    Serial.println(tmp);
+//    sprintf(tmp,  "data<%x>", this->txdata);
+//    Serial.println(tmp);
       switch (this->usart) {
         case 1:
           Serial1.write(this->txdata);
