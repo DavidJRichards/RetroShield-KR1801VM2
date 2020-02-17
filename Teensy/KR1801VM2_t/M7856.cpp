@@ -53,6 +53,7 @@ void M7856::init() {
 }
 
 void M7856::write(unsigned int address, unsigned int value) {
+  char tmp[80];
     if (address == this->rxstatusaddress) {
       this->rxstatus = value & ((1<<M7856_RXSTATUS_RCVRINTEND) | (1<<M7856_RXSTATUS_RDREND));         
     } else if (address == this->txstatusaddress) {
@@ -62,6 +63,8 @@ void M7856::write(unsigned int address, unsigned int value) {
     } else if (address == this->txdataaddress) {
       this->txdata = value;
       this->txstatus = this->txstatus & ((1<<M7856_TXSTATUS_XMITINTENB) | (1<<M7856_TXSTATUS_MAINT) | (1<<M7856_TXSTATUS_BREAK));
+    sprintf(tmp,  "data<%x>", this->txdata);
+    Serial.println(tmp);
       switch (this->usart) {
         case 1:
           Serial1.write(this->txdata);
