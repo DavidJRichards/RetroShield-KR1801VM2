@@ -239,125 +239,6 @@ unsigned int RAM[RAM_END-RAM_START+1];
 // Processor Control
 ////////////////////////////////////////////////////////////////////
 #ifndef TEENSY
-
-/* Digital Pin Assignments */
-
-#define ADDR_H   (PINC)
-#define ADDR_L   (PINA)
-
-#define DATA_H_OUT (PORTC)
-#define DATA_L_OUT (PORTA)
-
-#define DATA_H_IN (PINC)
-#define DATA_L_IN (PINA)
-
-#define DIR_IN  0x00
-#define DIR_OUT 0xFF
-
-#define DATA_H_DIR DDRC
-#define DATA_L_DIR DDRA
-#define ADDR_H_DIR DDRC
-#define ADDR_L_DIR DDRA
-
-
-#define ADDR     ((unsigned int) (ADDR_H << 8 | ADDR_L))
-#define DATA_IN  ((unsigned int) (DATA_H_IN << 8 | DATA_L_IN))
-
-static inline unsigned int DATA_IN_(void)
-{
-  return (unsigned int) (DATA_H_IN << 8 | DATA_L_IN);
-}
-
-static inline void DATA_OUT_(unsigned int busdata)
-{
-      DATA_H_OUT = ((busdata & 0xFF00)>> 8);
-      DATA_L_OUT = (busdata & 0x00FF);
-}
-
-
-// Digital IO Pin Numbers
-
-#define uP_DOUT_N   40    // PG1
-#define uP_DIN_N    41    // PG0
-#define uP_SYNC_N   39    // PG2
-#define uP_AR_N     44    // PL5
-#define uP_RPLY_N   46    // PL3
-#define uP_WTBT_N   47    // PL2
-#define uP_INIT_N   48    // PL1
-#define uP_SEL_N    49    // PL0
-#define uP_DCLO_N   50    // PB3
-#define uP_ACLO_N   51    // PB2
-#define uP_CLCI     52    // PB1
-
-// Digital IO Port Bit Masks
-
-// Port L
-
-#define _SEL_N  0x01
-#define _INIT_N 0x02
-#define _WTBT_N 0x04
-#define _RPLY_N 0x08
-#define _AR_N 0x20
-
-// Port B
-
-#define _CLCI 0x02
-#define _ACLO_N 0x04
-#define _DCLO_N 0x08
-
-// Port G
-
-#define _DIN_N 0x01
-#define _DOUT_N 0x02
-#define _SYNC_N 0x04
-
-// Port D
-
-#define _RPLY_N 0x08
-// #define _WTBT_N 0x10
-// #define _SEL_N 0x40
-
-// Macros for fast GPIO access 
-
-#define CLK_HIGH      (PORTB = PORTB | _CLCI)
-#define CLK_LOW       (PORTB = PORTB & (~_CLCI))
-
-#define ACLO_N_HIGH   (PORTB = PORTB | _ACLO_N)
-#define ACLO_N_LOW    (PORTB = PORTB & (~_ACLO_N))
-#define DCLO_N_HIGH   (PORTB = PORTB | _DCLO_N)
-#define DCLO_N_LOW    (PORTB = PORTB & (~_DCLO_N))
-
-#define AR_N_HIGH     (PORTL = PORTL | _AR_N)
-#define AR_N_LOW      (PORTL = PORTL & (~_AR_N))
-
-#define RPLY_N_HIGH   (PORTL = PORTL | _RPLY_N)
-#define RPLY_N_LOW    (PORTL = PORTL & ~(_RPLY_N))
-
-void uP_IN()
-{
-  ADDR_H_DIR = DIR_IN;
-  ADDR_L_DIR = DIR_IN;
-}
-
-void uP_OUT()
-{
-  ADDR_H_DIR = DIR_OUT;
-  ADDR_L_DIR = DIR_OUT;
-}
-
-// 1801VM2 States
-
-#define STATE_RESET     !((PINL & _INIT_N) || (PINB & _ACLO_N) || (PINB & _DCLO_N))
-#define STATE_START_1   !((PINL & _INIT_N) || (PINB & _ACLO_N) || !(PINB & _DCLO_N))
-#define STATE_START_2   !(!(PINL & _INIT_N) || (PINB & _ACLO_N) || !(PINB & _DCLO_N))
-#define STATE_STARTED   ((PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (uP_last_state == START_2)
-
-#define STATE_RESET_VECTOR ((PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PINL & _SEL_N) && (PING & _SYNC_N) && !(PING & _DIN_N))
-#define STATE_SET_INIT_ADDRESS ((PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PINL & _SEL_N) && (PING & _DIN_N) && (PING & _DOUT_N) && (!(PING & _SYNC_N)))
-#define STATE_SET_ADDRESS ((PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && ((PINL & _SEL_N) && (PING & _DIN_N) && (PING & _DOUT_N) && (!(PING & _SYNC_N)))
-#define STATE_DIN ((PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PING & _SYNC_N) && !(PING & _DIN_N))
-#define STATE_DOUT ((PINL & _INIT_N) && (PINB & _ACLO_N) && (PINB & _DCLO_N)) && (!(PING & _SYNC_N) && !(PING & _DOUT_N))
-
 #else // definitions for Teensy 3.5 below here -----------------------------------------------------------------------------------------------------------------------------
 #define uP_DOUT_N   16    // PB0
 #define uP_DIN_N     6    // PD4 //previously pin13  LED_BUILTIN  // PC5
@@ -383,21 +264,12 @@ void uP_OUT()
 #define xDATA_IN          ADDR
 
 // used to read address bus from CPU
-#define ADDR_H            ((word) (GPIOA_PDIR & 0b1111000000100000))
-#define ADDR_L            ((word) (GPIOC_PDIR & 0b0000111111011111))
-#define ADDR              ((word) (ADDR_H | ADDR_L))
-
-// convenience functions to read data bus from CPU
-#define xDATA_IN_H        ADDR_H
-#define xDATA_IN_L        ADDR_L
-#define xDATA_IN          ADDR
+#define ADDR_L            ((word) (GPIOA_PDIR & 0b1111000000100000))
+#define ADDR_H            ((word) (GPIOC_PDIR & 0b0000111111011111))
 
 // Macros for GPIO access
 
 // Outputs
-//#define CLK_HIGH      (GPIOA_PSOR  = (1<<17)) // CLCI A17
-//#define CLK_LOW       (GPIOA_PCOR  = (1<<17))
-//#define CLK_DIR       (GPIOA_PDDR |= (1<<17))
 #define CLK_HIGH      (GPIOD_PSOR  = (1<<6)) // CLCI D6
 #define CLK_LOW       (GPIOD_PCOR  = (1<<6))
 #define CLK_DIR       (GPIOD_PDDR |= (1<<6))
@@ -450,8 +322,8 @@ void uP_OUT()
 
 // need to use arduino pin i/o setup as well before data direction macros will work
 const byte pinTable[] = {
-  27,26,4,3,38,37,36,35,  // A15..A8
-  12,11,25,10,9,23,22,15  // A7..A0
+  15,22,23,9,10,25,11,12, // A7..A0
+  35,36,37,38,3,4,26,27   // A15..A8
 };
 
 // set A/D ports to outputs
@@ -459,6 +331,10 @@ static inline void uP_OUT(void)
 {
   xDATA_DIR_OUT_H();
   xDATA_DIR_OUT_L();
+  for (int i=0; i<16; i++)
+  {
+    pinMode(pinTable[i],OUTPUT);
+  } 
 }
 
 // set A/D ports to inputs
@@ -466,16 +342,25 @@ static inline void uP_IN(void)
 {
   xDATA_DIR_IN_H();
   xDATA_DIR_IN_L();
+  for (int i=0; i<16; i++)
+  {
+    pinMode(pinTable[i],INPUT);
+  } 
 }
 
 // write to the bus with this function
 // set bus to output first with uP_OUT();
 static inline void DATA_OUT_(unsigned int busdata)
 {
-  SET_DATA_OUT_H( busdata );
-  SET_DATA_OUT_L( busdata );
-    Serial.print("bus write ");      
-    Serial.println(~busdata, OCT);      
+  for (int i=0; i<16; i++)
+  {
+    pinMode(pinTable[i],OUTPUT);
+    digitalWrite(pinTable[i], (busdata & (1 << i)) != 0);
+  } 
+//  SET_DATA_OUT_H( busdata );
+//  SET_DATA_OUT_L( busdata );
+//    Serial.print("bus write ");      
+//    Serial.println(~busdata, OCT);      
 }
 
 // read ofrom the bus with this function or simply, data = ADDR;
@@ -483,8 +368,12 @@ static inline void DATA_OUT_(unsigned int busdata)
 static inline unsigned int DATA_IN_(void)
 {
   unsigned int return_val = (unsigned int) (ADDR_H | ADDR_L);
-  Serial.print("bus read ");      
-  Serial.println(~return_val & 0xFFFF, OCT);      
+//  for (int i=0; i<16; i++)
+//  {
+//    return_val |= digitalRead(pinTable[i]);
+//  } 
+//  Serial.print("bus read ");      
+//  Serial.println(~return_val &0xffff, OCT);      
   return return_val;
 }
 
@@ -519,7 +408,7 @@ static inline unsigned int DATA_IN_(void)
  
 #define STATE_IDLE                   0
 
-#define STATE_SYNC                  (SYNC_STATE) // i.e. when SYNC input active
+#define STATE_SYNC                  (SYNC_STATE != 0) // i.e. when SYNC input active
 
 #endif
 
@@ -558,10 +447,12 @@ uP_STATE uP_entry_state = IDLE;
 uP_STATE uP_last_state = IDLE;
 uP_STATE uP_current_state = IDLE;
 
-M7856 console(0,CONSOLE_BASE,9600);
+M7856 console(1,CONSOLE_BASE,9600);
 M7856 tu58(0,TU58_BASE,9600);
 KY11 operatorconsole(KY11_BASE,0);
-M9312 romterminator(M9312_LOW_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+//M9312 romterminator(M9312_LOW_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+//M9312 romterminator(ROM_LOOP,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+M9312 romterminator(ROM_SEND_B,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 
 void uP_init()
 {
@@ -669,7 +560,7 @@ void uP_assert_reset()
       uP_BUSDATA = ~uP_DATA;
       uP_OUT();
       DATA_OUT_(uP_BUSDATA);
-      uP_DATA = 0;
+      uP_DATA = 0;  // ?? djrm
     }
   } else if ((STATE_SET_ADDRESS) && (last_uP_SYNC_N == 1))
   {
@@ -678,8 +569,8 @@ void uP_assert_reset()
     {
       uP_IN();
       uP_last_state = SET_ADDRESS;
-      uP_BUSADDR = ADDR;
-      uP_ADDR = ~uP_BUSADDR;
+      uP_BUSADDR = DATA_IN_();
+      uP_ADDR = ~uP_BUSADDR & 0xffff;
     }
   } else if ((STATE_SET_INIT_ADDRESS) && (last_uP_SYNC_N == 1))
   {
@@ -688,8 +579,8 @@ void uP_assert_reset()
     {
       uP_IN();
       uP_last_state = SET_INIT_ADDRESS;
-      uP_BUSADDR = ADDR;
-      uP_ADDR = ~uP_BUSADDR;
+      uP_BUSADDR = DATA_IN_();
+      uP_ADDR = ~uP_BUSADDR & 0xffff;
     }
   } else if (STATE_DIN)
   {
@@ -740,6 +631,8 @@ void uP_assert_reset()
         // Bus Error Trap
 #ifdef TRAP_BUS_ERROR
         trap_bus_error();
+#else
+;        
 #endif
       }
     }
@@ -786,6 +679,8 @@ void uP_assert_reset()
         // Bus Error Trap
 #ifdef TRAP_BUS_ERROR
         trap_bus_error();
+#else
+    ;        
 #endif
       }
     }
@@ -808,7 +703,7 @@ void uP_assert_reset()
 #ifndef TEENSY
   last_uP_SYNC_N = (STATE_SYNC == _SYNC_N); // 
 #else
-  last_uP_SYNC_N = SYNC_STATE;
+  last_uP_SYNC_N = (SYNC_STATE != 0);
 #endif  
   if (last_uP_SYNC_N)  {
     AR_N_HIGH;
@@ -818,6 +713,7 @@ void uP_assert_reset()
  
 //  pinMode(uP_CLCI, OUTPUT);
 //  digitalWrite(uP_CLCI,HIGH);
+  delay(1);
   CLK_HIGH;
 //  delay(1);
 
@@ -1057,6 +953,7 @@ void debug_state()
   static uP_STATE uP_entry_state_save;
   static unsigned int digitalio_save;
   unsigned int entry_digitalio;
+  static unsigned int counter =1;
   entry_digitalio = 0
     | (digitalRead(uP_INIT_N) << 0)
     | (digitalRead(uP_DCLO_N) << 1)
@@ -1068,6 +965,24 @@ void debug_state()
     | (digitalRead(uP_DOUT_N) << 7)
     | (digitalRead(uP_RPLY_N) << 8)
     | (digitalRead(uP_WTBT_N) << 9);
+
+      //uP_IN();
+//      uP_BUSADDR = DATA_IN_();
+//      uP_ADDR = ~uP_BUSADDR & 0xffff;
+      
+//    sprintf(tmp, "A=%04 ", uP_ADDR);
+//    Serial.print(tmp);
+//  Serial.print(" <");
+//    Serial.print(uP_ADDR, BIN);
+//  Serial.print("> ");
+
+
+
+//      uP_BUSDATA = ~counter;
+//      uP_OUT();
+//      DATA_OUT_(uP_BUSDATA);
+//      counter +=1;
+
   
   if( (uP_entry_state != uP_entry_state_save) || (entry_digitalio != digitalio_save) || trace_ad)
   {
@@ -1187,7 +1102,16 @@ void debug_state()
     Serial.print(tmp);
     
     sprintf(tmp,  " D=o%06o", uP_DATA);
-    Serial.println(tmp);
+    Serial.print(tmp);
+
+//    sprintf(tmp," STATE_SET_ADDRESS=%d",STATE_SET_ADDRESS);
+//    Serial.print(tmp);
+//    sprintf(tmp," STATE_SET_INIT_ADDRESS=%d",STATE_SET_INIT_ADDRESS);
+//    Serial.print(tmp);
+    Serial.println();
+    
+
+    
   }
   
   uP_entry_state_save = uP_entry_state;
