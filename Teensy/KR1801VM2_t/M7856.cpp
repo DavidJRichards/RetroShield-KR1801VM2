@@ -37,6 +37,7 @@ M7856::M7856(uint8_t usart,unsigned int baseaddress,unsigned int baud) {
         break;
       case 2:
       Serial2.begin(baud);
+        Serial1.println("Serial 5 initialised");
         break;
       default:
         break;
@@ -55,13 +56,26 @@ void M7856::init() {
 
 void M7856::write(unsigned int address, unsigned int value) {
   char tmp[80];
-    if (address == this->rxstatusaddress) {
+    if (address == this->rxstatusaddress) 
+    {
       this->rxstatus = value & ((1<<M7856_RXSTATUS_RCVRINTEND) | (1<<M7856_RXSTATUS_RDREND));         
-    } else if (address == this->txstatusaddress) {
+          sprintf(tmp,  "rx status write %o", value);
+          Serial.println(tmp);
+    } 
+    else if (address == this->txstatusaddress) 
+    {
+          sprintf(tmp,  "tx status write %o", value);
+          Serial.println(tmp);
       this->txstatus = value & ((1<<M7856_TXSTATUS_XMITINTENB) | (1<<M7856_TXSTATUS_MAINT) | (1<<M7856_TXSTATUS_BREAK));         
-    } else if (address == this->rxdataaddress) {
-      
-    } else if (address == this->txdataaddress) {
+    } 
+    else if (address == this->rxdataaddress) 
+    {
+          sprintf(tmp,  "rx data");
+          Serial.println(tmp);
+      ; 
+    }
+    else if (address == this->txdataaddress) 
+    {
       this->txdata = value;
       this->txstatus = this->txstatus & ((1<<M7856_TXSTATUS_XMITINTENB) | (1<<M7856_TXSTATUS_MAINT) | (1<<M7856_TXSTATUS_BREAK));
 //    sprintf(tmp,  "data<%x>", this->txdata);
@@ -69,9 +83,13 @@ void M7856::write(unsigned int address, unsigned int value) {
       switch (this->usart) {
         case 1:
           Serial1.write(this->txdata);
+          sprintf(tmp,  "usart 1 tx data write %o", value);
+          Serial.println(tmp);
           break;
         case 2: 
-          Serial2.write(this->txdata);
+          Serial5.write(this->txdata);
+          sprintf(tmp,  "usart 2 tx data write %o", this->txdata);
+          Serial.println(tmp);
           break;
         default:
           break;
@@ -80,17 +98,45 @@ void M7856::write(unsigned int address, unsigned int value) {
 }
 
 unsigned int M7856::read(unsigned int address) {
-    if (address == this->rxstatusaddress) {
+  char tmp[80];
+      switch (this->usart) {
+        case 1:
+          sprintf(tmp,  "usart 1 read");
+          Serial.print(tmp);
+          break;
+        case 2: 
+          sprintf(tmp,  "usart 2 read");
+          Serial.print(tmp);
+          break;
+        default:
+          Serial.print("usart ?");
+          break;
+      }
+    if (address == this->rxstatusaddress) 
+    {
+      sprintf(tmp,  " rx status %o", this->rxstatus);
+      Serial.println(tmp);
       return this->rxstatus;      
-    } else if (address == this->txstatusaddress) {
+    } 
+    else if (address == this->txstatusaddress) 
+    {
+      sprintf(tmp,  " tx status %o", this->txstatus);
+      Serial.println(tmp);
       return this->txstatus;      
-    } else if (address == this->rxdataaddress) {
+    } 
+    else if (address == this->rxdataaddress) 
+    {
+      Serial.println(this->rxdata);
       this->rxstatus = this->rxstatus & ((1<<M7856_RXSTATUS_RCVRINTEND) | (1<<M7856_RXSTATUS_RDREND));         
       return this->rxdata;      
-    } else if (address == this->txdataaddress) {
+    } 
+    else if (address == this->txdataaddress) 
+    {
+      Serial.println(" txd");
       return 0;
     }
 #warning address error code here?    
+      Serial.println("address error");
     return 0;// suppress compiler warning
 }
 
@@ -99,6 +145,7 @@ boolean M7856::here(unsigned int address) {
 }
 
 void M7856::event() {
+  char tmp[80];
   switch (this->usart)
   {
     case 1:
@@ -110,19 +157,23 @@ void M7856::event() {
 
       if( (Serial1.available()) && !(this->rxstatus & (1<<M7856_RXSTATUS_RCVRDONE))) {
         this->rxdata = Serial1.read();
+        sprintf(tmp,  "usart 1 receive data %o ", this->rxdata);
+        Serial.println(tmp);
         this->rxstatus = this->rxstatus | (1<<M7856_RXSTATUS_RCVRDONE);
       }
       break;
       
     case 2:
-      if( (Serial2.availableForWrite())) {
+      if( (Serial5.availableForWrite())) {
         this->txstatus = this->txstatus | (1<<M7856_TXSTATUS_XMITRDY);
       } else {
         this->txstatus = this->txstatus & 0177577;
       }
 
-      if( (Serial2.available()) && !(this->rxstatus & (1<<M7856_RXSTATUS_RCVRDONE))) {
-        this->rxdata = Serial2.read();
+      if( (Serial5.available()) && !(this->rxstatus & (1<<M7856_RXSTATUS_RCVRDONE))) {
+    sprintf(tmp,  "usart 2 receive data %o ", this->rxdata);
+    Serial.println(tmp);
+        this->rxdata = Serial5.read();
         this->rxstatus = this->rxstatus | (1<<M7856_RXSTATUS_RCVRDONE);
       }
       break;

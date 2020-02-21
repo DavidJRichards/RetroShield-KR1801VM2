@@ -12,6 +12,7 @@
 #define M9312_ROM_HIGH3_END   0173577
 #define M9312_ROM_HIGH4_START 0173600
 #define M9312_ROM_HIGH4_END   0173777
+  
 
 M9312::M9312(const uint16_t (*ROML),const uint16_t (*ROMH1),const uint16_t (*ROMH2),const uint16_t (*ROMH3),const uint16_t (*ROMH4)) {
   this->_ROML = ROML;

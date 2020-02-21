@@ -42,10 +42,13 @@
 // Define for No-ISR cycling
 
 //#define NO_ISR 1
+#define LOOPTIME 1000
 
 // Define to trace processor cycles - in conjunction with NO_ISR 
 
 //#define CPUTRACE 1
+
+//#define CPSCOUNT 1
 
 // Define to enable traps
 
@@ -83,6 +86,8 @@ SSD1306AsciiWire oled;
 #include "M7856.h"
 #include "KY11.h"
 
+char          uP_RW;
+char          uP_AD;
 
 ////////////////////////////////////////////////////////////////////
 // Hardware Configuration
@@ -141,6 +146,11 @@ int backlightSet = 25;
 ////////////////////////////////////////////////////////////////////
 // ROMs
 ////////////////////////////////////////////////////////////////////
+const PROGMEM uint16_t ROM_ECHO[] = {
+0165004, 0000200, 012700, 0177560, 0105710, 0100376, 016060, 000002, 0000006, 0000772
+};
+
+
 
 // Loop Test
  
@@ -152,7 +162,30 @@ const PROGMEM uint16_t ROM_LOOP[] = {
 
 const PROGMEM uint16_t ROM_SEND_B[] = {
 0165004,0000200,032737,000200,0177564,001774,012737,000102,0177566,000770
+//0165004,0000200,032777,000200,0177564,001774,012737,000102,0177566,000770
+//0165004,0000200,032737,000200,0177564,001774,012737,000102,0177566,000770
 };
+
+// serial.mac @ 1000
+const PROGMEM uint16_t ROM_HELLO[] = {
+0165004 ,0000200, 0012706, 02000, 012700, 0165046, 04737, 0165024, 00000, 0000770,
+0105710, 001406, 0112037, 0177566, 0105737, 0177564, 00100375, 000770, 000207, 
+062510, 066154, 026157, 073440, 071157, 062154, 006441, 000012, 000000
+};
+
+#if 0
+0165004 ,0000200, 0012706, 0000776, 0012701, 0165132, 0004737, 0165060, 
+0004737, 0165114, 0042700, 0177600, 0120027, 0000003, 0001403, 0004737, 
+0165074, 0000766, 0012701, 0165215, 0004737, 0165060, 0000000, 0000752, 
+0112100, 0001403, 0004737, 0165074, 0000773, 0000207, 0012704, 0177560, 
+0110064, 0000006, 0105764, 0000004, 0100375, 0000207, 0012704, 0177560, 
+0105714, 0100376, 0016400, 0000002, 0000207, 0062510, 0066154, 0026157, 
+0053440, 0071157, 0062154, 0006441, 0052012, 0070171, 0062145, 0061440, 
+0060550, 0071562, 0060440, 0062562, 0062440, 0064143, 0062557, 0026144, 
+0057040, 0020103, 0040510, 0052114, 0027163, 0005015, 0006400, 0043412, 
+0067557, 0020144, 0074542, 0020545, 0005015, 0000000, 0000000, 0000000,
+};
+#endif
 
 // Modified DEC M9312 ROMs
 
@@ -353,6 +386,7 @@ static inline void DATA_OUT_(unsigned int busdata)
   {
     pinMode(pinTable[i],OUTPUT);
     digitalWrite(pinTable[i], (busdata & (1 << i)) != 0);
+    uP_RW='R';
   } 
 //  SET_DATA_OUT_H( busdata );
 //  SET_DATA_OUT_L( busdata );
@@ -370,21 +404,28 @@ static inline unsigned int DATA_IN_(void)
 //    return_val |= digitalRead(pinTable[i]);
 //  } 
 //  Serial.print("bus read ");      
-//  Serial.println(~return_val &0xffff, OCT);      
+//  Serial.println(~return_val &0xffff, OCT);   
+  uP_RW='W';   
+  return return_val;
+}
+static inline unsigned int ADDR_IN_(void)
+{
+  unsigned int return_val = (unsigned int) (ADDR_H | ADDR_L);
+  uP_RW='A';   
   return return_val;
 }
 
 // 1801VM2 States (Teensy)
 
-#define STATE_RESET               !( (INIT_STATE)     || (ACLO_STATE)     || (DCLO_STATE)     )
-#define STATE_START_1             !( (INIT_STATE)     || (ACLO_STATE)     || !(DCLO_STATE)    )
-#define STATE_START_2             !( !(INIT_STATE)     || (ACLO_STATE)     || !(DCLO_STATE)    )
+#define STATE_RESET               !( (INIT_STATE)     || (ACLO_STATE)     || (DCLO_STATE)    )
+#define STATE_START_1             !( (INIT_STATE)     || (ACLO_STATE)     || !(DCLO_STATE)   )
+#define STATE_START_2             !(!(INIT_STATE)     || (ACLO_STATE)     || !(DCLO_STATE)   )
 #define STATE_STARTED              ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (uP_last_state == START_2)
-#define STATE_RESET_VECTOR         ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SEL_STATE)     && (SYNC_STATE)     && !(DIN_STATE)    )
-#define STATE_SET_INIT_ADDRESS     ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE))     && (!(SEL_STATE)     && (DIN_STATE)     && (DOUT_STATE)     && (!(SYNC_STATE))     )
-#define STATE_SET_ADDRESS          ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)     ) && ( (SEL_STATE)     && (DIN_STATE)     && (DOUT_STATE)     && (!(SYNC_STATE))     )
-#define STATE_DIN                  ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SYNC_STATE)     && !(DIN_STATE)     ) 
-#define STATE_DOUT                 ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SYNC_STATE)     && !(DOUT_STATE)    )
+#define STATE_RESET_VECTOR         ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SEL_STATE)    &&  (SYNC_STATE)   && !(DIN_STATE)    )
+#define STATE_SET_INIT_ADDRESS     ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE))     && (!(SEL_STATE)    &&  (DIN_STATE)    &&  (DOUT_STATE)     && (!(SYNC_STATE))     )
+#define STATE_SET_ADDRESS          ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && ( (SEL_STATE)    &&  (DIN_STATE)    &&  (DOUT_STATE)     && (!(SYNC_STATE))     )
+#define STATE_DIN                  ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SYNC_STATE)   && !(DIN_STATE)     ) 
+#define STATE_DOUT                 ( (INIT_STATE)     && (ACLO_STATE)     && (DCLO_STATE)    ) && (!(SYNC_STATE)   && !(DOUT_STATE)    )
 #define STATE_IDLE                   0
 #define STATE_SYNC                  (SYNC_STATE != 0) // i.e. when SYNC input active
 
@@ -424,11 +465,13 @@ uP_STATE uP_last_state = IDLE;
 uP_STATE uP_current_state = IDLE;
 
 M7856 console(1,CONSOLE_BASE,9600);
-M7856 tu58(0,TU58_BASE,9600);
-KY11 operatorconsole(KY11_BASE,0); // disabled
+M7856 tu58(2,TU58_BASE,9600);
+KY11 operatorconsole(KY11_BASE,1); // disabled
 //M9312 romterminator(M9312_LOW_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 //M9312 romterminator(ROM_LOOP,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
-M9312 romterminator(ROM_SEND_B,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+//M9312 romterminator(ROM_SEND_B,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+//M9312 romterminator(ROM_HELLO,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+M9312 romterminator(ROM_ECHO,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 
 void uP_init()
 {
@@ -543,7 +586,7 @@ void uP_assert_reset()
     {
       uP_IN();
       uP_last_state = SET_ADDRESS;
-      uP_BUSADDR = DATA_IN_();
+      uP_BUSADDR = ADDR_IN_();
       uP_ADDR = ~uP_BUSADDR & 0xffff;
     }
   } else if ((STATE_SET_INIT_ADDRESS) && (last_uP_SYNC_N == 1))
@@ -553,7 +596,7 @@ void uP_assert_reset()
     {
       uP_IN();
       uP_last_state = SET_INIT_ADDRESS;
-      uP_BUSADDR = DATA_IN_();
+      uP_BUSADDR = ADDR_IN_();
       uP_ADDR = ~uP_BUSADDR & 0xffff;
     }
   } else if (STATE_DIN)
@@ -567,12 +610,14 @@ void uP_assert_reset()
       if (romterminator.here(uP_ADDR))
       {
         // ROM
+//      Serial.print("rom read ");
 
         address_valid = true;
         uP_DATA = romterminator.read(uP_ADDR);
       } else if ((uP_ADDR >= RAM_START) && (uP_ADDR < RAM_END))
       {
         // RAM
+//      Serial.print("ram read ");
         
         address_valid = true;
         offset = (uP_ADDR - RAM_START) / 2;
@@ -580,6 +625,7 @@ void uP_assert_reset()
       } else if (uP_ADDR >= IO_PAGE)
       {
         // Which IO device handles this
+//      Serial.print("io page read ");
 
         if (console.here(uP_ADDR)) {
           address_valid = true;
@@ -592,6 +638,7 @@ void uP_assert_reset()
           uP_DATA = operatorconsole.read(uP_ADDR);
         }
       }
+//      Serial.println(uP_DATA, OCT);
       
       if (address_valid)
       {
@@ -622,6 +669,8 @@ void uP_assert_reset()
       if ((uP_ADDR >= RAM_START) && (uP_ADDR < RAM_END))
       {
         // RAM
+      Serial.print("ram write ");
+      Serial.println(uP_DATA, OCT);
 
         address_valid = true;
         offset = (uP_ADDR - RAM_START) / 2;
@@ -629,6 +678,8 @@ void uP_assert_reset()
       } else if (uP_ADDR >= IO_PAGE)
       {
         // Which IO device handles this
+//      Serial.print("io page write ");
+//      Serial.println(uP_DATA, OCT);
 
         if (console.here(uP_ADDR)) {
           address_valid = true;
@@ -889,7 +940,7 @@ void setup()
   // only clocked via the main loop
 
 #ifndef NO_ISR
-  Timer1.initialize(100); // 100nS. 10kHz 
+  Timer1.initialize(LOOPTIME); // 100nS. 10kHz 
   Timer1.attachInterrupt(cycle); 
 #endif
 
@@ -916,7 +967,7 @@ void debug_state()
   static uP_STATE uP_entry_state_save;
   static unsigned int digitalio_save;
   unsigned int entry_digitalio;
-  static unsigned int counter =1;
+//  static unsigned int counter =1;
   entry_digitalio = 0
     | (digitalRead(uP_INIT_N) << 0)
     | (digitalRead(uP_DCLO_N) << 1)
@@ -950,7 +1001,7 @@ void debug_state()
   
   if( (uP_entry_state != uP_entry_state_save) || (entry_digitalio != digitalio_save) || trace_ad)
   {
-#if 1    
+#if  0   
     switch (uP_entry_state)
     {
       case RESET:
@@ -1092,10 +1143,39 @@ void debug_state()
 //   slow down.
 ////////////////////////////////////////////////////////////////////
 
+void consoletest(void)
+{ 
+  int data,stat; 
+  char tmp[80];
+  if(console.read(0177560)==0200) //rx status
+  {
+   data=console.read(0177562); // rx data
+  
+  do
+  {
+     stat=console.read(0177564); // tx status     
+          sprintf(tmp,  "stat = %o", stat);
+          Serial.println(tmp);
+
+    if((stat & 0200) == 0200)
+    {
+      console.write(0177566,data); // tx data
+//      Serial.println(data);
+//      data=65;
+    }
+ 
+  }while(stat!=0200);
+
+  }
+
+}
+
+
+
 void loop()
 {
 
-#if 1
+#if CPSCOUNT
   static int cycles=0;
   static long lastMillis=0;
   static float freq;
@@ -1118,7 +1198,7 @@ void loop()
   
   // Check for M7856 state changes
   console.event();
-  tu58.event();
+//  tu58.event();
 
 #ifdef USE_LCDKEYPAD
   if (USE_LCDKEYPAD)
@@ -1151,12 +1231,26 @@ void loop()
 #endif
 
   process_buttons();
-  sprintf(tmp, "A=o%06o\n\rD=o%06o",uP_ADDR, uP_DATA);
+  sprintf(tmp, "A=o%06o\n\r%c=o%06o",uP_ADDR, uP_RW, uP_DATA);
   oled.home();
   oled.print(tmp);
+  if(uP_RW)
+  {
+    if(uP_RW=='A')
+    {
+//    sprintf(tmp, " A=o%06o ",uP_ADDR);
+    }
+    else
+    {
+    sprintf(tmp, " A=o%06o %c=o%06o",uP_ADDR, uP_RW, uP_DATA);
+    Serial.println(tmp);
+    }
+    uP_RW=0;
+  }
 
 #ifdef NO_ISR
   cycle();  
+  //consoletest();
 #endif  
 
 #ifdef CPUTRACE
