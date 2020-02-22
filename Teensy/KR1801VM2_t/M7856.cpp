@@ -35,9 +35,9 @@ M7856::M7856(uint8_t usart,unsigned int baseaddress,unsigned int baud) {
         Serial1.begin(baud);
         Serial1.println("Serial 1 initialised");
         break;
-      case 2:
-      Serial2.begin(baud);
-        Serial1.println("Serial 5 initialised");
+      case 5:
+        Serial5.begin(baud);
+        Serial5.println("Serial 5 initialised");
         break;
       default:
         break;
@@ -86,9 +86,9 @@ void M7856::write(unsigned int address, unsigned int value) {
           sprintf(tmp,  "usart 1 tx data write %o", value);
           Serial.println(tmp);
           break;
-        case 2: 
+        case 5: 
           Serial5.write(this->txdata);
-          sprintf(tmp,  "usart 2 tx data write %o", this->txdata);
+          sprintf(tmp,  "usart 5 tx data write %o", this->txdata);
           Serial.println(tmp);
           break;
         default:
@@ -104,8 +104,8 @@ unsigned int M7856::read(unsigned int address) {
           sprintf(tmp,  "usart 1 read");
           Serial.print(tmp);
           break;
-        case 2: 
-          sprintf(tmp,  "usart 2 read");
+        case 5: 
+          sprintf(tmp,  "usart 5 read");
           Serial.print(tmp);
           break;
         default:
@@ -163,7 +163,7 @@ void M7856::event() {
       }
       break;
       
-    case 2:
+    case 5:
       if( (Serial5.availableForWrite())) {
         this->txstatus = this->txstatus | (1<<M7856_TXSTATUS_XMITRDY);
       } else {
@@ -171,7 +171,7 @@ void M7856::event() {
       }
 
       if( (Serial5.available()) && !(this->rxstatus & (1<<M7856_RXSTATUS_RCVRDONE))) {
-    sprintf(tmp,  "usart 2 receive data %o ", this->rxdata);
+    sprintf(tmp,  "usart 5 receive data %o ", this->rxdata);
     Serial.println(tmp);
         this->rxdata = Serial5.read();
         this->rxstatus = this->rxstatus | (1<<M7856_RXSTATUS_RCVRDONE);

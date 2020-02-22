@@ -33,7 +33,8 @@
 
 // Define to enable the OLED display
 
-#define OLED_DISPLAY
+//#define OLED_DISPLAY
+#define TM1638_DISPLAY
 
 // Define to enable the LCD/Keyboard
 
@@ -44,8 +45,10 @@
 //#define NO_ISR 1
 #define LOOPTIME 1000
 
+
 // Define to trace processor cycles - in conjunction with NO_ISR 
 
+#define ADDRESS_TRACE
 //#define CPUTRACE 1
 
 //#define CPSCOUNT 1
@@ -53,15 +56,15 @@
 // Define to enable traps
 
 #define TRAP_BUS_ERROR 1
-
-#ifdef OLED_DISPLAY
-#include <TimerOne.h>
 //#include <SD.h>
 //#include <SPI.h>
+
+#include <TimerOne.h>
+
+#ifdef OLED_DISPLAY
 #include <Wire.h>
 #include "SSD1306Ascii.h"
 #include "SSD1306AsciiWire.h"
-
 // 0X3C+SA0 - 0x3C or 0x3D
 #define I2C_ADDRESS 0x3C
 
@@ -71,10 +74,18 @@
 SSD1306AsciiWire oled;
 //const int chipSelect = BUILTIN_SDCARD;
 
-#define BUTTON_P  A21
-#define BUTTON_C  A22
-
 #endif // OLED DISPLAY
+
+#ifdef TM1638_DISPLAY
+#include <TM1638.h>
+#include <TM1638QYF.h>
+#include "keypad.h"
+#include "GString.h"
+TM1638QYF tm1638(18, 19, 31);
+TM1638QYF* _tm1638;
+word mode;
+unsigned long startTime;
+#endif
 
 #ifdef USE_LCDKEYPAD
 #include <LiquidCrystal.h>
@@ -92,6 +103,8 @@ char          uP_AD;
 ////////////////////////////////////////////////////////////////////
 // Hardware Configuration
 ////////////////////////////////////////////////////////////////////
+#define BUTTON_P  A21
+#define BUTTON_C  A22
 
 #ifdef USE_LCDKEYPAD
 
@@ -142,6 +155,8 @@ boolean BTN_RELEASE = 0;
 ////////////////////////////////////////////////////////////////////
 
 int backlightSet = 25;
+
+int clock_pause = 0;
 
 ////////////////////////////////////////////////////////////////////
 // ROMs
@@ -465,17 +480,18 @@ uP_STATE uP_last_state = IDLE;
 uP_STATE uP_current_state = IDLE;
 
 M7856 console(1,CONSOLE_BASE,9600);
-M7856 tu58(2,TU58_BASE,9600);
+M7856 tu58(5,TU58_BASE,9600);
 KY11 operatorconsole(KY11_BASE,1); // disabled
+
 //M9312 romterminator(M9312_LOW_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 //M9312 romterminator(ROM_LOOP,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
-//M9312 romterminator(ROM_SEND_B,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+M9312 romterminator(ROM_SEND_B,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 //M9312 romterminator(ROM_HELLO,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
-M9312 romterminator(ROM_ECHO,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+//M9312 romterminator(ROM_ECHO,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 
 void uP_init()
 {
- uP_IN();
+  uP_IN();
 
   DCLO_N_LOW;
   ACLO_N_LOW;
@@ -494,6 +510,11 @@ void uP_init()
   pinMode(uP_AR_N, OUTPUT);
   pinMode(uP_RPLY_N, OUTPUT);
   pinMode(uP_WTBT_N, INPUT);
+
+  for (int i=0; i<16; i++)
+  {
+    pinMode(pinTable[i],OUTPUT);
+  } 
 
   uP_assert_reset();
   CLK_LOW;
@@ -524,11 +545,9 @@ void uP_assert_reset()
 //  void cycle()
 #endif
   void cycle()
-{ 
-//  pinMode(uP_CLCI, OUTPUT);
-//  digitalWrite(uP_CLCI,LOW);
+{
+  if (clock_pause) return; 
   CLK_LOW;
-//  delay(1);
 
   uP_entry_state = uP_current_state;
   if (STATE_RESET)
@@ -737,81 +756,14 @@ void uP_assert_reset()
 }
 
 
-////////////////////////////////////////////////////////////////////
-// LCD/Keyboard functions
-////////////////////////////////////////////////////////////////////
 
-#ifdef USE_LCDKEYPAD
-
-int getKey()
-{
-  key = get_key2();
-  if (key != oldkey)
-    {
-      delay(BTN_DEBOUNCE);
-      key = get_key2();
-      if (key != oldkey) {
-        oldkey = key;
-        if (key == -1)
-          BTN_RELEASE = 1;
-        else
-          BTN_PRESS = 1;
-      }
-    } else {
-      BTN_PRESS = 0;
-      BTN_RELEASE = 0;
-    }
-  return (key != -1);
-}
-
-int get_key2()
-{
-  int k;
-  int adc_key_in;
-
-  adc_key_in = analogRead( LCD_BTN );
-  for( k = 0; k < NUM_KEYS; k++ )
-  {
-    if ( adc_key_in < adc_key_val[k] )
-    {
-      return k;
-    }
-  }
-  if ( k >= NUM_KEYS )
-    k = -1;
-  return k;
-}
-
-////////////////////////////////////////////////////////////////////
-// LCD/Keyboard callbacks
-////////////////////////////////////////////////////////////////////
-
-void btn_Pressed_Select()
-{
-}
-
-void btn_Pressed_Left()
-{
-}
-
-void btn_Pressed_Right()
-{
-}
-
-void btn_Pressed_Up()
-{
-}
-
-void btn_Pressed_Down()
-{
-}
-#endif
 
 ////////////////////////////////////////////////////////////////////
 // Button Press callbacks
 ////////////////////////////////////////////////////////////////////
 int upmode=0;
 int trace_ad=0;
+
 void btn_Pressed_Up(int button)
 {
 //  Serial.println("Up");
@@ -830,11 +782,11 @@ void btn_Pressed_Down(int button)
   if(button==1)
   {
     Serial.println("Resetting");
-    uP_assert_reset();
+    uP_init();
   }
   if(button==2)
   {
-    trace_ad=1;    
+    clock_pause = ! clock_pause;
   }
 }
 
@@ -891,30 +843,22 @@ void process_buttons()
 void setup() 
 {
 
-  // The primary ATMega2560 serial port is initialized for debug messages
-  
+  // The primary USB serial port is initialized for debug messages  
   Serial.begin(115200);
-  // Other serial ports are not initialized.  The M7856 class uses
+  // Other serial ports are not initialized HERE  
+  // The M7856 class DO NOT USE
   // direct access to the serial port registers
+
 #ifdef OLED_DISPLAY
   pinMode(BUTTON_P, INPUT);
   pinMode(BUTTON_C, INPUT);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN,1);      
-  for (int i=0; i<16; i++)
-  {
-    pinMode(pinTable[i],OUTPUT);
-  } 
   
   Wire.begin();
   Wire.setClock(400000L);
 
-#if RST_PIN >= 0
-  oled.begin(&Adafruit128x64, I2C_ADDRESS, RST_PIN);
-#else // RST_PIN >= 0
   oled.begin(&Adafruit128x64, I2C_ADDRESS);
-#endif // RST_PIN >= 0
-
   oled.setFont(X11fixed7x14);
   oled.clear();
   oled.set2X();
@@ -923,14 +867,16 @@ void setup()
   oled.println("1234 ABCD");
 #endif // OLED DISPLAY
 
-#ifdef USE_LCDKEYPAD
-  if (USE_LCDKEYPAD)
-  {
-    pinMode(LCD_BL, OUTPUT);
-    analogWrite(LCD_BL, backlightSet);  
-    lcd.begin(16, 2);  
-  }
+#ifdef TM1638_DISPLAY
+  startTime = millis();
+  _tm1638 = &tm1638;
+  tm1638.setupDisplay(true, 7);
+  tm1638.setDisplayToString("", 1);
+  cmdindex = 0;
+  cmdline[cmdindex] = 0;
+  mode = 0;
 #endif
+
 
   // Initialize processor GPIO's
   uP_init();
@@ -980,23 +926,6 @@ void debug_state()
     | (digitalRead(uP_RPLY_N) << 8)
 //    | (digitalRead(uP_WTBT_N) << 9)
     ;
-
-      //uP_IN();
-//      uP_BUSADDR = DATA_IN_();
-//      uP_ADDR = ~uP_BUSADDR & 0xffff;
-      
-//    sprintf(tmp, "A=%04 ", uP_ADDR);
-//    Serial.print(tmp);
-//  Serial.print(" <");
-//    Serial.print(uP_ADDR, BIN);
-//  Serial.print("> ");
-
-
-
-//      uP_BUSDATA = ~counter;
-//      uP_OUT();
-//      DATA_OUT_(uP_BUSDATA);
-//      counter +=1;
 
   
   if( (uP_entry_state != uP_entry_state_save) || (entry_digitalio != digitalio_save) || trace_ad)
@@ -1126,6 +1055,10 @@ void debug_state()
 //    sprintf(tmp," STATE_SET_INIT_ADDRESS=%d",STATE_SET_INIT_ADDRESS);
 //    Serial.print(tmp);
     Serial.println();
+
+#ifdef NO_ISR
+  delay(LOOPTIME); // mS here uS in ISR  
+#endif
  
   }
   
@@ -1170,7 +1103,9 @@ void consoletest(void)
 
 }
 
+//-----------------------------------------------------------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------------------------------------------------------
 
 void loop()
 {
@@ -1186,6 +1121,7 @@ void loop()
     freq = (float) (clock_cycle_count - cycles) / (currentMillis - lastMillis);
 #ifdef NO_ISR
     sprintf(tmp, "%.0f cps", freq*1000);
+    delay(100);
 #else    
     sprintf(tmp, "%.1f kcps", freq);
 #endif    
@@ -1198,7 +1134,11 @@ void loop()
   
   // Check for M7856 state changes
   console.event();
-//  tu58.event();
+  tu58.event();
+
+#ifdef NO_ISR
+  cycle();
+#endif  
 
 #ifdef USE_LCDKEYPAD
   if (USE_LCDKEYPAD)
@@ -1231,9 +1171,13 @@ void loop()
 #endif
 
   process_buttons();
+#ifdef OLED_DISPLAY  
   sprintf(tmp, "A=o%06o\n\r%c=o%06o",uP_ADDR, uP_RW, uP_DATA);
   oled.home();
   oled.print(tmp);
+#endif
+  
+#ifdef ADDRESS_TRACE
   if(uP_RW)
   {
     if(uP_RW=='A')
@@ -1247,11 +1191,11 @@ void loop()
     }
     uP_RW=0;
   }
+#endif
 
-#ifdef NO_ISR
-  cycle();  
-  //consoletest();
-#endif  
+#ifdef TM1638_DISPLAY
+  panel_update();
+#endif
 
 #ifdef CPUTRACE
   debug_state();
