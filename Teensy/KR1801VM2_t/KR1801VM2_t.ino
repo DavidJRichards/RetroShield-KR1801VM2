@@ -33,7 +33,7 @@
 
 // Define to enable the OLED display
 
-//#define OLED_DISPLAY
+#define OLED_DISPLAY
 #define TM1638_DISPLAY
 
 // Define to enable the LCD/Keyboard
@@ -42,14 +42,14 @@
 
 // Define for No-ISR cycling
 
-//#define NO_ISR 1
-#define LOOPTIME 1000
+#define NO_ISR 1
+#define LOOPTIME 200
 
 
 // Define to trace processor cycles - in conjunction with NO_ISR 
 
 #define ADDRESS_TRACE
-//#define CPUTRACE 1
+#define CPUTRACE 1
 
 //#define CPSCOUNT 1
 
@@ -80,8 +80,8 @@ SSD1306AsciiWire oled;
 #include <TM1638.h>
 #include <TM1638QYF.h>
 #include "keypad.h"
-#include "GString.h"
-TM1638QYF tm1638(18, 19, 31);
+// define a module on data pin, clock pin, and strobe pin
+TM1638QYF tm1638(44,45,46);
 TM1638QYF* _tm1638;
 word mode;
 unsigned long startTime;
@@ -188,6 +188,11 @@ const PROGMEM uint16_t ROM_HELLO[] = {
 062510, 066154, 026157, 073440, 071157, 062154, 006441, 000012, 000000
 };
 
+
+const PROGMEM uint16_t ROM_KNIGHT[] = {
+0165004,0000200,0012702,0177570, 0112000, 005000, 005200, 010012, 005200, 011200, 000773
+};
+
 #if 0
 0165004 ,0000200, 0012706, 0000776, 0012701, 0165132, 0004737, 0165060, 
 0004737, 0165114, 0042700, 0177600, 0120027, 0000003, 0001403, 0004737, 
@@ -271,7 +276,7 @@ const PROGMEM uint16_t M9312_BLANK_ROM[] = {
 
 // RAM (2 K Words with Mega2560)
 #define RAM_START   0000000
-#define RAM_END     0004000
+#define RAM_END     0010000
 unsigned int RAM[RAM_END-RAM_START+1];
 
 // PDP-11 IO Page Base Address
@@ -481,13 +486,14 @@ uP_STATE uP_current_state = IDLE;
 
 M7856 console(1,CONSOLE_BASE,9600);
 M7856 tu58(5,TU58_BASE,9600);
-KY11 operatorconsole(KY11_BASE,1); // disabled
+KY11 operatorconsole(KY11_BASE,1);
 
 //M9312 romterminator(M9312_LOW_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 //M9312 romterminator(ROM_LOOP,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
-M9312 romterminator(ROM_SEND_B,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+//M9312 romterminator(ROM_SEND_B,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 //M9312 romterminator(ROM_HELLO,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
-//M9312 romterminator(ROM_ECHO,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+M9312 romterminator(ROM_ECHO,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
+//M9312 romterminator(ROM_KNIGHT,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM,M9312_BLANK_ROM);
 
 void uP_init()
 {
@@ -773,6 +779,7 @@ void btn_Pressed_Up(int button)
   if(button==2)
   {
     trace_ad=0;
+    _tm1638->setDisplayToDecNumber(uP_ADDR, 1<<7, false);
   }
 }
 
@@ -787,6 +794,7 @@ void btn_Pressed_Down(int button)
   if(button==2)
   {
     clock_pause = ! clock_pause;
+    _tm1638->setDisplayToDecNumber(uP_DATA, 1<<6, false);
   }
 }
 
@@ -900,7 +908,8 @@ void trap_bus_error()
 {
   sprintf(tmp, "\nBus Error Trap A%06o", uP_ADDR);
   Serial.println(tmp);
-  for (;;) {}
+  //for (;;) {}
+  clock_pause = 1;
 }
 
 #ifdef CPUTRACE
@@ -930,7 +939,7 @@ void debug_state()
   
   if( (uP_entry_state != uP_entry_state_save) || (entry_digitalio != digitalio_save) || trace_ad)
   {
-#if  0   
+#if  1   
     switch (uP_entry_state)
     {
       case RESET:
@@ -969,7 +978,7 @@ void debug_state()
     }
 #endif  
   
-#if 0  
+#if 1  
     switch (uP_current_state)
     {
       case RESET:
